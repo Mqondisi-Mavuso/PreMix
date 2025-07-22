@@ -1,6 +1,6 @@
 <h1 align="center"> PreMix: Addressing Label Scarcity in Whole Slide Image Classification with Pre-trained Multiple Instance Learning Aggregators </h1>
 
-**Under Submission Review for Biomedical Signal Processing and Control**
+**Under Submission Review for Computer Methods and Programs in Biomedicine**
 
 ## Overview
 - This study introduces *PreMix*, a framework that leverages the Barlow Twins method with a Slide Mixing approach to pre-train MIL aggregators, addressing the scarce labeled WSIs and the underexplored potential of utilizing unlabeled WSIs in weakly supervised classification.
