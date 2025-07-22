@@ -1,11 +1,11 @@
-<h1 align="center"> PreMix: Addressing Label Scarcity in Whole Slide Image Classification with Pre-trained Multiple Instance Learning Aggregators </h1>
+<h1 align="center"> PreMix: Label-Efficient Multiple Instance Learning via Non-Contrastive Pre-training and Feature Mixing </h1>
 
 **Under Submission Review for Computer Methods and Programs in Biomedicine**
 
 ## Overview
-- This study introduces *PreMix*, a framework that leverages the Barlow Twins method with a Slide Mixing approach to pre-train MIL aggregators, addressing the scarce labeled WSIs and the underexplored potential of utilizing unlabeled WSIs in weakly supervised classification.
-- By integrating Mixup and Manifold Mixup during fine-tuning, *PreMix* effectively manages the gigapixel nature and diverse sizes of WSIs, significantly enhancing classification performance under conditions with limited labeled WSI data.
-- Experimental results demonstrate that integrating HIPT into PreMix achieves a 4.7\% mean F1 improvement over the baseline HIPT, showcasing its scalability and effectiveness across varying WSI datasets and labeling scenarios.
+- Non-contrastive MIL pre-training for WSI classification: We introduce PreMix, a self-supervised framework at the WSI level based on Barlow Twins, which avoids reliance on negative pairs and effectively addresses class imbalance in WSI datasets.
+- Intra-batch slide mixing for semantic enrichment: PreMix enhances representation learning through Barlow Twins Slide Mixing, generating additional positive pairs by interpolating features across slides within the same batch.
+- Dual-stage mixing strategy for improved generalization: We combine unsupervised pre-training with supervised fine-tuning using Mixup and Manifold Mixup, demonstrating robust performance across diverse WSI datasets and label budgets.
 
 <p align="center">
   <img src="figures/common_mil_vs_premix_framework.png" alt="Setting Image" width="1000">
@@ -17,7 +17,7 @@
   <img src="figures/overall_training_process.png" alt="Setting Image" width="1000">
 </p>
 
-To assess the robustness of both the original MIL framework and the proposed *PreMix* framework, we conducted experiments using random sampling and active learning settings with a limited WSI labeled dataset
+To assess the robustness of both the original MIL framework and the proposed *PreMix* framework, we conducted experiments using random sampling (traditional fully supervised fine-tuning) and active learning settings with a limited WSI labeled dataset
 
 ## Environments
 - Windows 10 Enterprise
