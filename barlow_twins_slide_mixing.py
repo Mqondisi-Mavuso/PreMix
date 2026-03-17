@@ -15,6 +15,9 @@ from source.dataset import PretrainFeaturesDataset
 from source.dataset_utils import pretrain_collate_features
 from source.utils import seed_torch
 
+# For training progress bar
+from tqdm import tqdm
+
 # CutMix -> applying it to features
 def cut_non_padding_regions_with_rand_indices(mask, lam):
     """
@@ -33,7 +36,11 @@ def cut_non_padding_regions_with_rand_indices(mask, lam):
 
     ratio = np.sqrt(1 - lam) # ratio of cutting
     non_pad_len = (~mask).sum().item() # count "False" in mask list
-    cut_len = int(non_pad_len * ratio)
+    # cut_len = int(non_pad_len * ratio)
+    # Force arrays/tensors into pure Python scalars to satisfy PyTorch 2.6 / NumPy 2.x
+    r_val = ratio.item() if hasattr(ratio, 'item') else ratio
+    n_val = non_pad_len.item() if hasattr(non_pad_len, 'item') else non_pad_len
+    cut_len = int(n_val * r_val)
     
     # Initialize the indices
     start_idx, end_idx = None, None
@@ -238,7 +245,8 @@ def main(cfg: DictConfig):
     checkpoint_dir = Path(output_dir, "checkpoints", cfg.level)
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
-    features_dir = Path(output_dir, "features", cfg.experiment_name, cfg.level, "slide")
+    # features_dir = Path(output_dir, "features", cfg.experiment_name, cfg.level, "slide")
+    features_dir = Path("C:/EMPRESS_Lab_files/Fortune/OCCC_Data/Fast_Features")
 
     # Data
     print('==> Preparing data..')
@@ -258,8 +266,9 @@ def main(cfg: DictConfig):
         shuffle=True,
         drop_last=True,
         collate_fn=partial(pretrain_collate_features),
-        num_workers=8,
-        pin_memory=True,
+        # --- HARDWARE MAXIMIZATION ---
+        num_workers=0,     # Dedicates 20 CPU cores to prefetching, leaving 4 for OS/GPU overhead
+        pin_memory=False,    # Locks tensors in fast RAM for maximum PCIe transfer speeds
     )
 
     print('==> Building model..')
@@ -298,7 +307,7 @@ def main(cfg: DictConfig):
         train_mix_loss = 0
         train_total_loss = 0
 
-        for batch_idx, (slide_id, features1, features2, mask1, mask2) in enumerate(train_loader):
+        for batch_idx, (slide_id, features1, features2, mask1, mask2) in enumerate(tqdm(train_loader, desc=f"Epoch {epoch}")):
             features1, features2 = features1.cuda(non_blocking=True), features2.cuda(non_blocking=True)
             mask1, mask2 = mask1.cuda(non_blocking=True), mask2.cuda(non_blocking=True)
 

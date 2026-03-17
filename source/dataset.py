@@ -43,7 +43,7 @@ class ExtractedFeaturesDataset(torch.utils.data.Dataset):
             df["label"] = df[self.label_name]
         filtered_slide_ids = []
         for slide_id in df.slide_id:
-            if Path(self.features_dir, f"{slide_id}.pt").is_file():
+            if Path(self.features_dir, f"{slide_id}_features.pt").is_file():
                 filtered_slide_ids.append(slide_id)
         df_filtered = df[df.slide_id.isin(filtered_slide_ids)].reset_index(drop=True)
         return df_filtered
@@ -61,12 +61,16 @@ class ExtractedFeaturesDataset(torch.utils.data.Dataset):
         return self.df.loc[idx].label
 
     def __getitem__(self, idx: int):
-        
         row = self.df.loc[idx]
         slide_id = row.slide_id
         
-        fp = Path(self.features_dir, f"{slide_id}.pt")
-        features = torch.load(fp)
+        fp = Path(self.features_dir, f"{slide_id}_features.pt")
+        # raw_features = torch.load(fp)
+        raw_features = torch.load(fp, weights_only=False)
+        
+        # Unpack custom dictionary and stack the high-resolution features 
+        # into the [N, 2304] tensor the transformer expects
+        features = torch.stack([patch['hr_feature'] for patch in raw_features])
 
         label = row.label
         if self.label_encoding == "ordinal":
@@ -93,7 +97,7 @@ class PretrainFeaturesDataset(torch.utils.data.Dataset):
     def prepare_data(self, df):
         filtered_slide_ids = []
         for slide_id in df.slide_id:
-            if Path(self.features_dir, f"{slide_id}.pt").is_file():
+            if Path(self.features_dir, f"{slide_id}_features.pt").is_file():
                 filtered_slide_ids.append(slide_id)
 
         df_filtered = df[df.slide_id.isin(filtered_slide_ids)].reset_index(drop=True)
@@ -109,29 +113,54 @@ class PretrainFeaturesDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx: int):
         row = self.df.loc[idx]
         slide_id = row.slide_id
-        fp = Path(self.features_dir, f"{slide_id}.pt")
-        features = torch.load(fp)
+        fp = Path(self.features_dir, f"{slide_id}_features.pt")
+        
+        # 1. Instantly load the pure tensor (safe and fast!)
+        fast_data = torch.load(fp, weights_only=True)
+
+        # 2. Extract the pre-concatenated HR+LR features
+        features = fast_data['features']
+
+        # --- ADDED THIS TO PREVENT SEQUENCE LENGTH CRASHES AND GPU OOM ---
+        max_patches = 4000
+        if features.shape[0] > max_patches:
+            # Randomly sample max_patches without replacement
+            indices = torch.randperm(features.shape[0])[:max_patches]
+            features = features[indices]
 
         if self.augmentation == "slide_aug":
-            transform = transforms.Compose([
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.RandomApply([transforms.Lambda(lambda x: RandomZeroing(x, p=0.5))], p=0.5),
-                transforms.RandomApply([transforms.Lambda(lambda x: GaussianNoise(x, std=0.1))], p=1.0),
-                transforms.RandomApply([transforms.Lambda(lambda x: RandomScaling(x, min_scale=0.9, max_scale=1.1))], p=0.5),
-                transforms.RandomApply([transforms.Lambda(lambda x: RandomCrop(x, crop_size=0.3))], p=0.5)
-            ])
+            
+            def fast_vectorized_augment(x, zero_prob=0.5, noise_prob=1.0, scale_prob=0.5, crop_prob=0.5):
+                x_aug = x.clone()
+                
+                # 1. Random Zeroing
+                if torch.rand(1).item() < zero_prob:
+                    mask = torch.rand_like(x_aug) > 0.5
+                    x_aug = x_aug * mask
+                    
+                # 2. Gaussian Noise
+                if torch.rand(1).item() < noise_prob:
+                    x_aug = x_aug + torch.randn_like(x_aug) * 0.1
+                    
+                # 3. Random Scaling
+                if torch.rand(1).item() < scale_prob:
+                    scale = torch.empty(1).uniform_(0.9, 1.1).item()
+                    x_aug = x_aug * scale
+                    
+                # 4. Random Crop (Drops 30% of the sequence)
+                if torch.rand(1).item() < crop_prob:
+                    seq_len = x_aug.shape[0]
+                    crop_len = int(seq_len * 0.7)
+                    start_idx = torch.randint(0, seq_len - crop_len + 1, (1,)).item()
+                    x_aug = x_aug[start_idx : start_idx + crop_len]
+                    
+                return x_aug
 
-            transform_prime = transforms.Compose([
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.RandomApply([transforms.Lambda(lambda x: RandomZeroing(x, p=0.5))], p=0.5),
-                transforms.RandomApply([transforms.Lambda(lambda x: GaussianNoise(x, std=0.1))], p=0.1),
-                transforms.RandomApply([transforms.Lambda(lambda x: RandomScaling(x, min_scale=0.9, max_scale=1.1))], p=0.5),
-                transforms.RandomApply([transforms.Lambda(lambda x: RandomCrop(x, crop_size=0.3))], p=0.5)
-            ])
-
-            # apply augmentations to features
-            features1 = transform(features)
-            features2 = transform_prime(features)
+            # features1 gets standard augmentation (100% noise chance based on original config)
+            features1 = fast_vectorized_augment(features, zero_prob=0.5, noise_prob=1.0, scale_prob=0.5, crop_prob=0.5)
+            
+            # features2 gets prime augmentation (10% noise chance based on original config)
+            features2 = fast_vectorized_augment(features, zero_prob=0.5, noise_prob=0.1, scale_prob=0.5, crop_prob=0.5)
         
         elif self.augmentation == "random_qtr":
             # apply random quarter from overlap 0.5 (insufficient number of regions if it was taken from overlap 0)

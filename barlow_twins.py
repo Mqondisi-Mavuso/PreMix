@@ -131,7 +131,8 @@ def main(cfg: DictConfig):
     checkpoint_dir = Path(output_dir, "checkpoints", cfg.level)
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
-    features_dir = Path(output_dir, "features", cfg.experiment_name, cfg.level, "slide")
+    # features_dir = Path(output_dir, "features", cfg.experiment_name, cfg.level, "slide")
+    features_dir = Path("C:/EMPRESS_Lab_files/Fortune/OCCC_Data/Extracted_Features")
 
     # Data
     print('==> Preparing data..')

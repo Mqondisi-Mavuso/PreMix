@@ -17,7 +17,7 @@ augmentation: slide_aug # [slide_aug, random_qtr]
 csv_name: camelyon16_cptac_ucec
 
 model:
-  embed_dim_region: 192
+  embed_dim_region: 2304   # Changed this from 192 to 2303 from CHIEF and Gigapath
   dropout: 0.25
 
   slide_pos_embed:

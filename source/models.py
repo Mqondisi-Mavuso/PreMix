@@ -432,7 +432,7 @@ class LocalGlobalHIPT(nn.Module):
 
         # Global Aggregation
         self.global_phi = nn.Sequential(
-            nn.Linear(embed_dim_region, 192), nn.ReLU(), nn.Dropout(dropout)
+            nn.Linear(embed_dim_region, 192), nn.ReLU(), nn.Dropout(dropout)   # modified "embed_dim_region" the embeddings to accept the 4608 by 192 dimensions
         )
         self.global_transformer = nn.TransformerEncoder(
             nn.TransformerEncoderLayer(
@@ -587,7 +587,7 @@ class HIPT(nn.Module):
 
         # Global Aggregation
         self.global_phi = nn.Sequential(
-            nn.Linear(embed_dim_region, 192), nn.ReLU(), nn.Dropout(dropout)
+            nn.Linear(embed_dim_region, 192), nn.ReLU(), nn.Dropout(dropout) # modified "embed_dim_region" the embeddings to accept the 4608 by 192 dimensions
         )
         self.global_transformer = nn.TransformerEncoder(
             nn.TransformerEncoderLayer(
